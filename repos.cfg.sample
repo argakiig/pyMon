@@ -1,0 +1,6 @@
+[repositories]
+repos = ethereum-optimism/optimism,paradigmxyz/reth,bnb-chain/reth,ethereum-optimism/op-geth,sigp/lighthouse,maticnetwork/bor
+
+[artifacts]
+path = artifacts
+history = true
