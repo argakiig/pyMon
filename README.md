@@ -130,6 +130,54 @@ The tool automatically detects artifacts in monorepos by:
 
 No manual configuration is required for monorepos.
 
+## Testing
+
+The project includes a comprehensive test suite using pytest. Tests cover all major functionality including:
+- Release fetching and parsing
+- File operations
+- Monorepo artifact detection
+- Configuration handling
+- Error cases
+
+### Running Tests
+
+1. Install test dependencies:
+```bash
+pip install pytest
+```
+
+2. Run the test suite:
+```bash
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest test_release_fetcher.py
+
+# Run specific test
+pytest test_release_fetcher.py::test_history_mode
+```
+
+### Test Coverage
+
+The test suite includes:
+- Unit tests for core functionality
+- Integration tests for file operations
+- Parameterized tests for different release formats
+- Mocked GitHub API responses to avoid rate limiting
+- Temporary directory fixtures for safe file operations
+
+### Adding New Tests
+
+When adding new features, please ensure:
+1. Test coverage for new functionality
+2. Mocked external dependencies
+3. Use of appropriate fixtures
+4. Clear test documentation
+
 ## Notes
 
 - Release notes are saved in markdown format

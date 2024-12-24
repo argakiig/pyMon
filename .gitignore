@@ -1,3 +1,5 @@
 .venv
 .env
 artifacts
+__pycache__
+.pytest_cache

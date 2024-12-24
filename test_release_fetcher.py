@@ -3,6 +3,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
 from get_latest_releases import GitHubReleaseFetcher, ReleaseInfo
+import configparser
 
 # Test data
 MOCK_RELEASES = [
@@ -79,7 +80,8 @@ def fetcher(temp_artifacts_dir, mock_session):
     """Create a GitHubReleaseFetcher instance with mocked session."""
     with patch.dict(os.environ, {
         'ARTIFACTS_PATH': str(temp_artifacts_dir),
-        'GITHUB_TOKEN': 'fake_token'
+        'GITHUB_TOKEN': 'fake_token',
+        'ARTIFACT_HISTORY': 'false'  # Explicitly disable history mode
     }):
         return GitHubReleaseFetcher()
 
@@ -93,17 +95,26 @@ def test_get_latest_releases(fetcher):
     """Test fetching latest releases."""
     releases = fetcher.get_latest_releases("test/repo")
     
-    # Check regular release
-    assert '' in releases
-    stable, pre = releases['']
-    assert stable.tag == 'v1.0.0'
-    assert not stable.is_prerelease
-    
-    # Check monorepo release was detected
-    assert 'op-node' in releases
-    stable, pre = releases['op-node']
-    assert stable.tag == 'op-node/v1.10.2'
-    assert not stable.is_prerelease
+    if fetcher.fetch_history:
+        # History mode
+        assert '' in releases
+        assert len(releases['']) >= 1  # At least one release
+        assert any(r.tag == 'v1.0.0' for r in releases[''])
+        
+        assert 'op-node' in releases
+        assert len(releases['op-node']) >= 1
+        assert any(r.tag == 'op-node/v1.10.2' for r in releases['op-node'])
+    else:
+        # Latest only mode
+        assert '' in releases
+        stable, pre = releases['']
+        assert stable.tag == 'v1.0.0'
+        assert not stable.is_prerelease
+        
+        assert 'op-node' in releases
+        stable, pre = releases['op-node']
+        assert stable.tag == 'op-node/v1.10.2'
+        assert not stable.is_prerelease
 
 def test_save_release_notes(fetcher, temp_artifacts_dir):
     """Test saving release notes to files."""
@@ -183,3 +194,36 @@ def test_tag_cleanup(fetcher, temp_artifacts_dir, tag, artifact, expected):
         base_path = temp_artifacts_dir / 'owner' / 'repo'
     
     assert (base_path / f"{expected}.md").exists() 
+
+def test_history_mode_configuration():
+    """Test history mode can be configured through different methods."""
+    # Test environment variable
+    with patch.dict(os.environ, {'ARTIFACT_HISTORY': 'true'}):
+        fetcher = GitHubReleaseFetcher()
+        assert fetcher.fetch_history
+
+    # Test command line
+    with patch('sys.argv', ['script.py', '--history']):
+        fetcher = GitHubReleaseFetcher()
+        assert fetcher.fetch_history
+
+    # Test config file
+    mock_config = configparser.ConfigParser()
+    mock_config['artifacts'] = {'history': 'true'}
+    
+    def mock_read(self, filenames, *args, **kwargs):
+        # Simulate reading the config file by setting the values
+        self['artifacts'] = {'history': 'true'}
+        return filenames
+
+    with patch('os.path.exists', return_value=True), \
+         patch.object(configparser.ConfigParser, 'read', mock_read):
+        fetcher = GitHubReleaseFetcher()
+        assert fetcher.fetch_history
+
+    # Test default value
+    with patch.dict(os.environ, {'ARTIFACT_HISTORY': ''}, clear=True), \
+         patch('os.path.exists', return_value=False), \
+         patch('sys.argv', ['script.py']):
+        fetcher = GitHubReleaseFetcher()
+        assert not fetcher.fetch_history 
